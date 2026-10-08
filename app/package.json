@@ -1,0 +1,58 @@
+{
+  "name": "livechat-potes",
+  "productName": "LiveChat Potes",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Envoie des GIFs, vidéos et sons sur l'écran de tes potes",
+  "author": "iPhoZe",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "fr.potes.livechat",
+    "productName": "LiveChat Potes",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "iPhoZe",
+        "repo": "livechat-potes",
+        "releaseType": "release"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "relay.js",
+      "links.js",
+      "defaults.json",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LiveChat Potes",
+      "runAfterFinish": true,
+      "artifactName": "LiveChat-Potes-Setup-${version}.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "livechat-potes-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serveur relais autonome pour LiveChat entre potes (utilise app/relay.js)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
