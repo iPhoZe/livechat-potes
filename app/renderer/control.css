@@ -127,6 +127,22 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .advanced { margin-top: 4px; }
 .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 10px; }
 
+/* ---------- Connexion / dépannage ---------- */
+.conn-box { margin-bottom: 12px; padding: 12px; border-radius: 10px; background: rgba(248, 113, 113, .08); border: 1px solid rgba(248, 113, 113, .3); }
+.conn-box.connecting { background: rgba(251, 191, 36, .08); border-color: rgba(251, 191, 36, .3); }
+.conn-msg { font-size: 13px; margin-bottom: 10px; }
+.conn-msg small { display: block; color: var(--muted); margin-top: 4px; }
+.conn-actions, .row-btns { display: flex; gap: 8px; }
+.row-btns { margin-top: 10px; }
+.row-btns .btn { flex: 1; }
+.small-btn { padding: 7px 12px; font-size: 13px; }
+.small-btn svg { width: 15px; height: 15px; }
+.diag { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.diag li { padding: 8px 10px; border-radius: 8px; background: var(--panel-2); }
+.diag li.ko { background: rgba(248, 113, 113, .1); }
+.diag li small { display: block; color: var(--muted); margin-top: 2px; }
+.diag li.running { color: var(--muted); }
+
 /* ---------- Gens en ligne ---------- */
 .people { display: flex; flex-wrap: wrap; gap: 8px; }
 .person {

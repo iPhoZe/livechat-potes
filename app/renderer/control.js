@@ -3,6 +3,10 @@ const CLIP_SECONDS = 15;
 const api = window.livechat;
 const $ = (id) => document.getElementById(id);
 
+// Toute erreur JavaScript de cette fenêtre part dans le journal de l'appli
+window.addEventListener('error', (e) => api.reportError('fenêtre', `${e.message} (${e.filename?.split('/').pop()}:${e.lineno})\n${e.error?.stack || ''}`));
+window.addEventListener('unhandledrejection', (e) => api.reportError('fenêtre', `Promesse rejetée : ${e.reason?.stack || e.reason}`));
+
 let cfg = {};
 let packaged = false;
 let status = 'disconnected';
@@ -66,18 +70,79 @@ $('quitBtn').addEventListener('click', () => api.quit());
 $('quitBtn2').addEventListener('click', () => api.quit());
 
 // ---------- Statut ----------
-const STATUS_LABEL = { connected: 'Connecté', connecting: 'Connexion…', disconnected: 'Déconnecté', error: 'Erreur de connexion' };
-let lastError = null;
+const STATUS_LABEL = { connected: 'Connecté', connecting: 'Connexion…', disconnected: 'Déconnecté', error: 'Pas connecté' };
+let statusDetail = '';
+let retryAt = null;
 
-function renderStatus({ status: s, detail }) {
+function renderStatus({ status: s, detail, retryAt: at }) {
   status = s;
+  statusDetail = detail || '';
+  retryAt = at || null;
   const box = $('status');
   box.className = `status ${s}`;
-  box.querySelector('.label').textContent = STATUS_LABEL[s] || s;
-  box.title = detail || '';
-  if (s === 'error' && detail && detail !== lastError) toast(`Connexion impossible : ${detail}`, 'error');
-  lastError = s === 'connected' ? null : s === 'error' ? detail : lastError;
+  box.title = statusDetail;
+  renderConnection();
 }
+
+// Bandeau "pas connecté" : ce qui se passe, quand on réessaie, et un bouton pour réessayer tout de suite
+function renderConnection() {
+  const secs = retryAt ? Math.max(0, Math.ceil((retryAt - Date.now()) / 1000)) : null;
+  const label = $('status').querySelector('.label');
+  label.textContent = status === 'disconnected' && secs ? `Reconnexion dans ${secs} s` : STATUS_LABEL[status] || status;
+
+  const box = $('connBox');
+  box.hidden = status === 'connected' || !cfg.name;
+  if (box.hidden) return;
+  box.className = `conn-box ${status === 'connecting' ? 'connecting' : ''}`;
+  const msg = $('connMsg');
+  msg.innerHTML = '';
+  if (status === 'connecting') msg.append('Connexion au serveur…');
+  else {
+    msg.append(statusDetail || 'Pas connecté au serveur.');
+    if (secs) msg.append(el('small', {}, `Nouvel essai automatique dans ${secs} s.`));
+  }
+  $('retryBtn').disabled = status === 'connecting';
+}
+setInterval(() => retryAt && renderConnection(), 1000);
+
+$('retryBtn').addEventListener('click', () => api.reconnectNow());
+$('diagLink').addEventListener('click', () => {
+  fillSettings();
+  showView('settings');
+  $('troubleshoot').scrollIntoView({ behavior: 'smooth' });
+  runDiagnose();
+});
+
+// ---------- Dépannage ----------
+async function runDiagnose() {
+  const list = $('diagList');
+  list.hidden = false;
+  list.innerHTML = '';
+  list.append(el('li', { class: 'running' }, '⏳ Test en cours… (jusqu’à 20 s)'));
+  $('diagBtn').disabled = true;
+  try {
+    const steps = await api.diagnose();
+    list.innerHTML = '';
+    for (const s of steps) list.append(el('li', { class: s.ok ? 'ok' : 'ko' }, `${s.ok ? '✅' : '❌'} ${s.label}`, s.hint ? el('small', {}, s.hint) : null));
+  } catch (e) {
+    list.innerHTML = '';
+    list.append(el('li', { class: 'ko' }, `❌ Le test a échoué : ${e.message}`));
+  } finally {
+    $('diagBtn').disabled = false;
+  }
+}
+$('diagBtn').addEventListener('click', runDiagnose);
+$('openLog').addEventListener('click', () => api.openLog());
+$('copyReport').addEventListener('click', async () => {
+  $('copyReport').disabled = true;
+  toast('Préparation du rapport…');
+  try {
+    await api.copyReport();
+    toast('Rapport copié : colle-le sur Discord (Ctrl+V).');
+  } finally {
+    $('copyReport').disabled = false;
+  }
+});
 
 // ---------- Ne pas déranger ----------
 function renderDnd() {
@@ -124,6 +189,7 @@ $('obGo').addEventListener('click', async () => {
   showView('home');
   renderDnd();
   renderPeople();
+  renderConnection();
 });
 $('obName').addEventListener('keydown', (e) => e.key === 'Enter' && $('obGo').click());
 
@@ -199,7 +265,7 @@ function renderPeople() {
   if (selectedTo !== '*' && !others.some((u) => u.name === selectedTo)) selectedTo = '*';
 
   if (status !== 'connected') {
-    box.append(el('div', { class: 'empty' }, 'Pas connecté au serveur…'));
+    box.append(el('div', { class: 'empty' }, 'La liste s’affichera une fois connecté.'));
     $('onlineCount').textContent = '';
   } else {
     const everyone = el(
@@ -530,7 +596,7 @@ api.onAck(({ id, by, status: st }) => {
   if (!item?.recipients || !(by in item.recipients)) return;
   const current = item.recipients[by];
   // "vu" est définitif ; sinon on ne revient jamais en arrière
-  if (current === 'shown' || RECEIPT[st].rank < RECEIPT[current].rank) return;
+  if (!RECEIPT[st] || current === 'shown' || RECEIPT[st].rank < (RECEIPT[current]?.rank ?? 0)) return;
   item.recipients[by] = st;
   renderSent();
 });
@@ -612,6 +678,7 @@ api.onReceived((r) => {
 api.onConfig((c) => {
   cfg = c;
   renderDnd();
+  renderConnection();
 });
 
 // ---------- Mises à jour ----------
@@ -642,7 +709,7 @@ api.getState().then((state) => {
   packaged = state.packaged;
   users = state.presence || [];
   $('version').textContent = state.version;
-  renderStatus({ status: state.status });
+  renderStatus({ status: state.status, detail: state.statusDetail, retryAt: state.retryAt });
   if (!cfg.name) {
     fillOnboarding();
     showView('onboarding');

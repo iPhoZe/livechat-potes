@@ -1,4 +1,7 @@
 const api = window.livechat;
+
+window.addEventListener('error', (e) => api.reportError('overlay', `${e.message} (${e.filename?.split('/').pop()}:${e.lineno})\n${e.error?.stack || ''}`));
+window.addEventListener('unhandledrejection', (e) => api.reportError('overlay', `Promesse rejetée : ${e.reason?.stack || e.reason}`));
 const settings = { volume: 0.6, imageSeconds: 6, maxVideoSeconds: 15 };
 const queue = [];
 const LOAD_TIMEOUT_MS = 15000;

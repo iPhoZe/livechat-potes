@@ -65,13 +65,19 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
         const room = String(msg.room || '').trim().slice(0, 64);
         if (!name || !room) return send(ws, { type: 'error', message: 'Pseudo et code du salon obligatoires.' });
 
+        leave(ws);
         if (!rooms.has(room)) rooms.set(room, new Map());
         const members = rooms.get(room);
         const existing = members.get(name);
         if (existing && existing !== ws) {
-          return send(ws, { type: 'error', message: `Le pseudo "${name}" est déjà pris dans ce salon.` });
+          // Le plus souvent c'est la même personne qui revient après une coupure réseau (Wi-Fi, veille) :
+          // son ancienne connexion est morte mais pas encore détectée. La nouvelle prend sa place.
+          log(`~ ${name} remplace son ancienne connexion [${room}]`);
+          send(existing, { type: 'replaced', message: `Ton pseudo "${name}" vient de se connecter depuis un autre endroit.` });
+          members.delete(name);
+          existing.room = null;
+          existing.terminate();
         }
-        leave(ws);
         ws.name = name;
         ws.room = room;
         ws.dnd = !!msg.dnd;
@@ -91,7 +97,7 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
 
       // Bouton "Actualiser" : on vérifie qui répond encore, puis on renvoie la liste
       if (msg.type === 'who') {
-        const members = rooms.get(ws.room);
+        const members = rooms.get(ws.room) || new Map();
         const checks = [...members.values()].filter((c) => c !== ws).map(
           (c) =>
             new Promise((resolve) => {
@@ -131,7 +137,7 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
           source: msg.source === 'x' ? 'x' : undefined,
         };
 
-        const members = rooms.get(ws.room);
+        const members = rooms.get(ws.room) || new Map();
         const targets = msg.to === '*' ? [...members.values()].filter((c) => c !== ws) : [members.get(msg.to)].filter(Boolean);
 
         sentIndex.set(payload.id, { sender: ws, room: ws.room, at: now });
@@ -170,7 +176,7 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
     ws.on('error', () => leave(ws));
   });
 
-  // Coupe les connexions mortes + oublie les vieux envois
+  // Coupe les connexions mortes (≤ 30 s) + oublie les vieux envois
   const heartbeat = setInterval(() => {
     const now = Date.now();
     for (const [id, entry] of sentIndex) if (now - entry.at > ACK_TTL_MS) sentIndex.delete(id);
@@ -182,12 +188,18 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
       ws.isAlive = false;
       ws.ping();
     }
-  }, 30000);
+  }, 15000);
 
+  // ws ré-émet les erreurs du serveur HTTP sur wss : sans écouteur, Node les transforme en exception
+  // (ex. port déjà utilisé) avant même que server.on('error') ne soit appelé.
+  wss.on('error', () => {});
+  let failed = false;
   server.on('error', (e) => {
+    if (failed) return;
+    failed = true;
     clearInterval(heartbeat);
     if (onError) onError(e);
-    else throw e;
+    else log(`Erreur du serveur : ${e.message}`);
   });
 
   server.listen(port, () => {

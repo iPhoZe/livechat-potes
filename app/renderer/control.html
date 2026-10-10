@@ -84,6 +84,13 @@
         <h2>En ligne <span id="onlineCount" class="muted"></span></h2>
         <button id="refreshBtn" class="icon-btn small" title="Actualiser la liste"><svg><use href="#i-refresh"/></svg></button>
       </div>
+      <div id="connBox" class="conn-box" hidden>
+        <div id="connMsg" class="conn-msg"></div>
+        <div class="conn-actions">
+          <button id="retryBtn" class="btn primary small-btn"><svg><use href="#i-refresh"/></svg>Réessayer</button>
+          <button id="diagLink" class="btn ghost small-btn">Diagnostic</button>
+        </div>
+      </div>
       <div id="people" class="people"></div>
       <p class="hint"><span class="dot ok"></span> peut recevoir &nbsp; <span class="dot off"></span> ne pas déranger &nbsp;·&nbsp; clique sur un pote pour lui envoyer à lui seul</p>
     </section>
@@ -152,6 +159,18 @@
       <p class="hint">Les vidéos sont limitées à 15 secondes.</p>
       <label class="toggle"><input id="dnd" type="checkbox" /><span class="track"></span><span>Ne pas déranger</span></label>
       <button id="clear" class="btn ghost">Effacer l'écran maintenant</button>
+    </section>
+
+    <section class="card" id="troubleshoot">
+      <h2>Dépannage</h2>
+      <p class="hint" style="margin-top:0">Un souci de connexion ? Lance le test : il dit exactement où ça bloque.</p>
+      <button id="diagBtn" class="btn ghost">Tester la connexion</button>
+      <ul id="diagList" class="diag" hidden></ul>
+      <div class="row-btns">
+        <button id="copyReport" class="btn ghost">Copier le rapport</button>
+        <button id="openLog" class="btn ghost">Ouvrir le journal</button>
+      </div>
+      <p class="hint">« Copier le rapport » met le résultat du test et la fin du journal dans le presse-papiers : colle-le sur Discord à celui qui t'aide. Le code du salon n'y figure pas.</p>
     </section>
 
     <section class="card">
