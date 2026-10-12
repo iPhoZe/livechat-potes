@@ -116,7 +116,7 @@ function createOverlay() {
       autoplayPolicy: 'no-user-gesture-required',
     },
   });
-  overlayWin.setAlwaysOnTop(true, 'screen-saver');
+  overlayWin.setAlwaysOnTop(true, 'screen-saver', 1);
   overlayWin.setVisibleOnAllWorkspaces(true);
   overlayWin.setIgnoreMouseEvents(true);
   overlayWin.loadFile(path.join(__dirname, 'renderer', 'overlay.html'));
@@ -124,6 +124,36 @@ function createOverlay() {
     overlayWin.showInactive();
     pushSettingsToOverlay();
   });
+  // Windows peut lui retirer le "toujours au premier plan" (Discord, jeux, autres fenêtres épinglées…)
+  overlayWin.on('always-on-top-changed', (_e, onTop) => !onTop && !reasserting && setTimeout(bringOverlayToFront, 50));
+}
+
+// Remet l'overlay au-dessus de TOUTES les fenêtres, y compris celles elles-mêmes "toujours au premier plan".
+// Basculer off/on force Windows à réappliquer le niveau, moveTop() le passe devant les autres fenêtres épinglées.
+let reasserting = false;
+function bringOverlayToFront() {
+  if (!overlayWin || overlayWin.isDestroyed()) return;
+  reasserting = true; // notre propre bascule off/on ne doit pas relancer l'écouteur ci-dessus
+  try {
+    overlayWin.setAlwaysOnTop(false);
+    overlayWin.setAlwaysOnTop(true, 'screen-saver', 1);
+    if (!overlayWin.isVisible()) overlayWin.showInactive();
+    overlayWin.moveTop();
+  } finally {
+    setTimeout(() => (reasserting = false), 100);
+  }
+}
+
+// Pendant qu'un média est à l'écran, on revérifie régulièrement qu'il reste devant
+let frontTimer = null;
+function keepOverlayInFront(ms = 20000) {
+  bringOverlayToFront();
+  clearInterval(frontTimer);
+  const until = Date.now() + ms;
+  frontTimer = setInterval(() => {
+    if (Date.now() > until) return clearInterval(frontTimer);
+    bringOverlayToFront();
+  }, 1000);
 }
 
 function createControl() {
@@ -527,6 +557,7 @@ function connect() {
           return;
         }
         wsSend({ type: 'ack', id: msg.id, status: 'received' });
+        keepOverlayInFront();
         toOverlay('media', msg);
         toControl('received', { from: msg.from, kind: msg.kind, text: msg.text, source: msg.source, at: Date.now() });
         break;
@@ -727,6 +758,7 @@ ipcMain.handle('send-media', (_e, payload) => {
 
 ipcMain.handle('preview-self', (_e, payload) => {
   // Test local : affiche le média sur ton propre écran
+  keepOverlayInFront();
   toOverlay('media', { ...payload, id: `local-${Date.now()}`, from: `${config.name || 'Moi'} (test)` });
   return { ok: true };
 });
@@ -756,13 +788,16 @@ app.whenReady().then(() => {
   // Si l'écran change (résolution, écran principal…), on recale l'overlay
   const fitOverlay = () => {
     if (overlayWin && !overlayWin.isDestroyed()) overlayWin.setBounds(screen.getPrimaryDisplay().bounds);
+    bringOverlayToFront();
   };
   screen.on('display-metrics-changed', fitOverlay);
   screen.on('display-added', fitOverlay);
   screen.on('display-removed', fitOverlay);
 
   // Après une veille, la connexion est morte : on reconnecte sans attendre le prochain essai
-  powerMonitor.on('resume', () => setTimeout(() => reconnectNow('Sortie de veille : reconnexion'), 2000));
+  powerMonitor.on('resume', () => setTimeout(() => { bringOverlayToFront(); reconnectNow('Sortie de veille : reconnexion'); }, 2000));
+  // Filet de sécurité : on revérifie le premier plan toutes les 30 s même sans média
+  setInterval(bringOverlayToFront, 30000);
   powerMonitor.on('unlock-screen', () => status !== 'connected' && reconnectNow('Session déverrouillée : reconnexion'));
 
   if (config.host) startHosting(connect);
