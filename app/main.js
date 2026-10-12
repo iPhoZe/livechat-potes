@@ -380,6 +380,50 @@ function stopHosting() {
   hostError = null;
 }
 
+// ---------- Tunnel playit (pour l'hébergeur) ----------
+// Le service playit est en démarrage "manuel" : sans lui, les potes ne peuvent pas joindre le salon.
+// En mode hébergement, l'appli le démarre elle-même (pas besoin de droits admin).
+const { execFile } = require('child_process');
+const PLAYIT_EXE = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'playit_gg', 'bin', 'playit.exe');
+const PLAYIT_CHECK_EVERY_MS = 5 * 60 * 1000;
+let playitState = 'unknown'; // unknown | absent | running | error
+
+function run(cmd, args) {
+  return new Promise((resolve) =>
+    execFile(cmd, args, { windowsHide: true, timeout: 20000 }, (err, stdout, stderr) => resolve({ err, out: `${stdout || ''}${stderr || ''}` }))
+  );
+}
+
+async function playitRunning() {
+  const q = await run('sc', ['query', 'playitd']);
+  return /RUNNING/.test(q.out);
+}
+
+async function ensurePlayit() {
+  if (!config.host || process.platform !== 'win32') return;
+  if (!fs.existsSync(PLAYIT_EXE)) {
+    playitState = 'absent';
+    return;
+  }
+  if (await playitRunning()) {
+    playitState = 'running';
+    return;
+  }
+  log.info('Tunnel playit arrêté : démarrage…');
+  const r = await run(PLAYIT_EXE, ['start']);
+  // le service passe par "START_PENDING" quelques secondes avant "RUNNING"
+  playitState = 'error';
+  for (let i = 0; i < 10; i++) {
+    if (await playitRunning()) {
+      playitState = 'running';
+      break;
+    }
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+  if (playitState === 'running') log.info('Tunnel playit démarré');
+  else log.error('Impossible de démarrer playit :', r.out.trim() || r.err?.message || 'erreur inconnue');
+}
+
 function effectiveServerUrl() {
   return config.host ? `ws://localhost:${config.hostPort}` : config.serverUrl;
 }
@@ -661,6 +705,10 @@ async function diagnose() {
 
   if (config.host) {
     steps.push(relay ? { ok: true, label: `Salon hébergé sur ce PC (port ${config.hostPort})` } : { ok: false, label: 'Hébergement arrêté', hint: hostError || 'Le serveur intégré ne tourne pas.' });
+    await ensurePlayit();
+    if (playitState === 'running') steps.push({ ok: true, label: 'Tunnel playit actif' });
+    else if (playitState === 'absent') steps.push({ ok: false, label: 'playit n’est pas installé', hint: 'Sans tunnel, tes potes ne peuvent pas te joindre depuis Internet.' });
+    else steps.push({ ok: false, label: 'Tunnel playit arrêté', hint: 'Impossible de le démarrer automatiquement : lance « playit » depuis le menu Démarrer.' });
     // Ce que voient les potes : l'adresse publique (tunnel)
     if (config.serverUrl && !/localhost|127\.0\.0\.1/.test(config.serverUrl)) await checkAddress(config.serverUrl, 'Depuis Internet', steps);
   } else {
@@ -720,8 +768,10 @@ ipcMain.handle('save-connection', (_e, { serverUrl, name, room, host }) => {
   if (room !== undefined) config.room = String(room || '').trim().slice(0, 64);
   if (host !== undefined) config.host = !!host;
   saveConfig();
-  if (config.host) startHosting(connect);
-  else {
+  if (config.host) {
+    startHosting(connect);
+    ensurePlayit();
+  } else {
     stopHosting();
     connect();
   }
@@ -795,13 +845,15 @@ app.whenReady().then(() => {
   screen.on('display-removed', fitOverlay);
 
   // Après une veille, la connexion est morte : on reconnecte sans attendre le prochain essai
-  powerMonitor.on('resume', () => setTimeout(() => { bringOverlayToFront(); reconnectNow('Sortie de veille : reconnexion'); }, 2000));
+  powerMonitor.on('resume', () => setTimeout(() => { bringOverlayToFront(); ensurePlayit(); reconnectNow('Sortie de veille : reconnexion'); }, 2000));
   // Filet de sécurité : on revérifie le premier plan toutes les 30 s même sans média
   setInterval(bringOverlayToFront, 30000);
   powerMonitor.on('unlock-screen', () => status !== 'connected' && reconnectNow('Session déverrouillée : reconnexion'));
 
   if (config.host) startHosting(connect);
   else connect();
+  ensurePlayit();
+  setInterval(ensurePlayit, PLAYIT_CHECK_EVERY_MS);
 
   setupUpdates();
 });
