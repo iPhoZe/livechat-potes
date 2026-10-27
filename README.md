@@ -44,6 +44,13 @@ Les applis installées vérifient au démarrage puis toutes les 4 h, télécharg
 - **Accusés de réception** : ⏳ en route → ✓ reçu → ✓✓ vu (affiché à l'écran), ✗ échec, 🔕 ne pas déranger.
 - **Installateur** (`LiveChat-Potes-Setup-x.y.z.exe`) avec raccourcis Bureau / menu Démarrer + option « Lancer au démarrage de Windows ».
 
+## Nouveautés v1.3 : mode combat ⚔️
+
+- Chaque média reçu a **10 cœurs** façon Minecraft. Clique dessus pour lui faire des dégâts (tremblement, flash rouge,
+  chiffres de dégâts, coups critiques). À 0 cœur, il explose en fumée et disparaît.
+- L'expéditeur voit **💀 détruit** dans ses accusés de réception.
+- La souris n'est captée qu'au-dessus du média : partout ailleurs, les clics passent à tes fenêtres.
+
 ## Nouveautés v1.2
 
 - **Mises à jour automatiques** via GitHub Releases (bandeau « Redémarrer pour l'installer », bouton « Rechercher » dans les réglages).

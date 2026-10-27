@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('livechat', {
 
   // Overlay
   ack: (id, status) => ipcRenderer.send('overlay-ack', { id, status }),
+  setHitbox: (box) => ipcRenderer.send('overlay-hitbox', box),
   onMedia: on('media'),
   onClear: on('clear'),
   onSettings: on('settings'),

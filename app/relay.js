@@ -163,11 +163,11 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
         });
       }
 
-      // Accusé de réception d'un receveur : "received" (arrivé), "shown" (affiché), "failed", "skipped"
+      // Accusé de réception d'un receveur : "received" (arrivé), "shown" (affiché), "failed", "skipped", "killed" (détruit à coups de clics)
       if (msg.type === 'ack') {
         const entry = sentIndex.get(msg.id);
         if (!entry || entry.room !== ws.room) return;
-        const status = ['received', 'shown', 'failed', 'skipped'].includes(msg.status) ? msg.status : null;
+        const status = ['received', 'shown', 'failed', 'skipped', 'killed'].includes(msg.status) ? msg.status : null;
         if (status) send(entry.sender, { type: 'ack', id: msg.id, by: ws.name, status });
       }
     });

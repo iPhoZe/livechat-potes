@@ -118,7 +118,7 @@ function createOverlay() {
   });
   overlayWin.setAlwaysOnTop(true, 'screen-saver', 1);
   overlayWin.setVisibleOnAllWorkspaces(true);
-  overlayWin.setIgnoreMouseEvents(true);
+  overlayWin.setIgnoreMouseEvents(true, { forward: true });
   overlayWin.loadFile(path.join(__dirname, 'renderer', 'overlay.html'));
   overlayWin.once('ready-to-show', () => {
     overlayWin.showInactive();
@@ -731,6 +731,7 @@ ipcMain.handle('get-state', () => ({
   version: app.getVersion(),
   packaged: app.isPackaged,
   update: updateState,
+  mouseCaptured,
 }));
 
 ipcMain.handle('reconnect-now', () => reconnectNow('Réessai demandé par l’utilisateur'));
@@ -820,6 +821,33 @@ ipcMain.on('overlay-ack', (_e, { id, status }) => {
 });
 
 ipcMain.on('clear-overlay', clearOverlay);
+
+// Mode combat : l'overlay laisse passer la souris partout, sauf au-dessus du média affiché (pour pouvoir le frapper).
+// On surveille la position du curseur tant qu'un média est à l'écran : plus fiable que les événements "forward".
+let hitbox = null;
+let hitTimer = null;
+let mouseCaptured = false;
+
+function setMouseCapture(v) {
+  if (v === mouseCaptured || !overlayWin || overlayWin.isDestroyed()) return;
+  mouseCaptured = v;
+  overlayWin.setIgnoreMouseEvents(!v, { forward: true });
+}
+
+ipcMain.on('overlay-hitbox', (_e, box) => {
+  hitbox = box;
+  clearInterval(hitTimer);
+  if (!box) return setMouseCapture(false);
+  hitTimer = setInterval(() => {
+    if (!overlayWin || overlayWin.isDestroyed() || !hitbox) return;
+    const p = screen.getCursorScreenPoint();
+    const b = overlayWin.getBounds();
+    const x = p.x - b.x;
+    const y = p.y - b.y;
+    const pad = 8; // la carte tremble un peu quand on la frappe
+    setMouseCapture(x >= hitbox.x - pad && x <= hitbox.x + hitbox.w + pad && y >= hitbox.y - pad && y <= hitbox.y + hitbox.h + pad);
+  }, 40);
+});
 ipcMain.on('quit-app', quitApp);
 
 // ---------- Démarrage ----------

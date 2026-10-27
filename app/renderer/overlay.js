@@ -9,6 +9,7 @@ let current = null; // { msg, el, timers, objectUrl, media }
 
 api.onSettings((s) => {
   Object.assign(settings, s);
+  window.Combat.setVolume(settings.volume);
   if (current?.media) current.media.volume = settings.volume;
 });
 
@@ -140,7 +141,9 @@ function next() {
   const onShown = (seconds) => {
     if (current !== self || self.shown) return;
     self.shown = true;
+    // Mode combat : à force de cliquer dessus, le média est détruit
     place(card);
+    window.Combat.attach(card, () => current === self && finish('killed', true));
     api.ack(msg.id, 'shown');
     startProgress(seconds);
     later(() => current === self && finish(), seconds * 1000);
@@ -177,8 +180,9 @@ function finish(status, immediate = false) {
   const { msg, el, timers, objectUrl, media, shown } = current;
   current = null;
   timers.forEach(clearTimeout);
-  // Effacé avant d'avoir pu s'afficher → "ignoré" ; erreur → "échec"
-  if (status === 'failed' || (status === 'skipped' && !shown)) api.ack(msg.id, status);
+  // Effacé avant d'avoir pu s'afficher → "ignoré" ; erreur → "échec" ; détruit à coups de clics → "killed"
+  if (status === 'failed' || status === 'killed' || (status === 'skipped' && !shown)) api.ack(msg.id, status);
+  window.Combat.release(); // le média disparaît : la souris doit de nouveau traverser l'overlay
   if (media) {
     media.pause();
     media.removeAttribute('src');

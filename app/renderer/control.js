@@ -581,6 +581,7 @@ const RECEIPT = {
   failed: { label: 'échec', icon: '✗', rank: 3 },
   skipped: { label: 'ignoré', icon: '⏭', rank: 3 },
   dnd: { label: 'ne pas déranger', icon: '🔕', rank: 3 },
+  killed: { label: 'détruit', icon: '💀', rank: 4 },
 };
 
 api.onSent(({ id, clientId, recipients }) => {
@@ -596,8 +597,10 @@ api.onAck(({ id, by, status: st }) => {
   if (!item?.recipients || !(by in item.recipients)) return;
   const current = item.recipients[by];
   // "vu" est définitif ; sinon on ne revient jamais en arrière
-  if (!RECEIPT[st] || current === 'shown' || RECEIPT[st].rank < (RECEIPT[current]?.rank ?? 0)) return;
+  // on ne revient jamais en arrière ; seul "détruit" peut encore arriver après "vu"
+  if (!RECEIPT[st] || RECEIPT[st].rank <= (RECEIPT[current]?.rank ?? 0)) return;
   item.recipients[by] = st;
+  if (st === 'killed') toast(`💀 ${by} a détruit ton envoi à coups d'épée !`, 'error');
   renderSent();
 });
 

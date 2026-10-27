@@ -94,6 +94,51 @@
       vertical-align: middle;
     }
 
+    /* ---------- Mode combat ---------- */
+    .card.fightable {
+      /* curseur épée */
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M4 4 L21 21' stroke='%23111' stroke-width='7' stroke-linecap='square'/%3E%3Cpath d='M4 4 L21 21' stroke='%23e8e8f2' stroke-width='3' stroke-linecap='square'/%3E%3Cpath d='M15 25 L25 15' stroke='%23111' stroke-width='6' stroke-linecap='square'/%3E%3Cpath d='M15 25 L25 15' stroke='%237a4a1e' stroke-width='3' stroke-linecap='square'/%3E%3Cpath d='M22 22 L29 29' stroke='%23111' stroke-width='6' stroke-linecap='square'/%3E%3Cpath d='M22 22 L29 29' stroke='%235b3514' stroke-width='3' stroke-linecap='square'/%3E%3C/svg%3E") 4 4, crosshair;
+    }
+    .hearts {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      display: flex;
+      gap: 1px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, .5);
+      pointer-events: none;
+    }
+    .hearts svg { display: block; }
+    .hurt {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: #ff1a1a;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .dmg {
+      position: absolute;
+      z-index: 4;
+      transform: translate(-50%, -50%);
+      color: #ff4040;
+      font: 900 28px/1 "Segoe UI", sans-serif;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .dmg.crit { color: #ffd23b; font-size: 30px; }
+    .smoke {
+      position: fixed;
+      z-index: 10;
+      box-shadow: inset -3px -3px 0 rgba(0, 0, 0, .2);
+      pointer-events: none;
+    }
+
     @keyframes pop-in {
       from { opacity: 0; transform: scale(.6) rotate(-3deg); }
       to   { opacity: 1; transform: scale(1) rotate(0); }
@@ -107,6 +152,7 @@
   </style>
 </head>
 <body>
+  <script src="combat.js"></script>
   <script src="overlay.js"></script>
 </body>
 </html>
