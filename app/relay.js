@@ -70,7 +70,6 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
   const DUEL_MS = 20000; // sinon, celui qui mène au bout de 20 s gagne
   const DUEL_INTRO_MS = 5000; // annonce + 3, 2, 1
   const DUEL_MAX_CPS = 20; // au-delà, c'est un autoclicker : les clics en trop sont ignorés
-  const DUEL_RESULT_MS = 2800; // le temps d'afficher le résultat avant d'envoyer la vidéo au perdant
   let duelSeq = 0;
 
   function duelError(ws, message) {
@@ -103,6 +102,7 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
       durationMs: DUEL_MS,
       startsIn: DUEL_INTRO_MS,
       mediaKind: media.kind,
+      media: mediaPayload(media, ws.name, now),
     };
     send(ws, { ...intro, you: 'a' });
     send(opp, { ...intro, you: 'b' });
@@ -156,24 +156,11 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
     if (forfeiter) winner = forfeiter === duel.a ? duel.b : duel.a;
     else if (duel.pos > 0) winner = duel.a;
     else if (duel.pos < 0) winner = duel.b;
-    const losers = winner ? [winner === duel.a ? duel.b : duel.a] : [duel.a, duel.b]; // égalité : tout le monde la mange
     log(`⚔ fin du duel ${duel.a.name}/${duel.b.name} : ${winner ? `${winner.name} gagne` : 'égalité'} (${duel.ca}-${duel.cb}, ${reason})`);
 
     const end = { type: 'duel-end', id: duel.id, winner: winner?.name || null, pos: duel.pos, ca: duel.ca, cb: duel.cb, reason: forfeiter ? 'forfeit' : reason };
     send(duel.a, end);
     send(duel.b, end);
-
-    // La vidéo en jeu arrive chez le(s) perdant(s) une fois le résultat affiché
-    setTimeout(() => {
-      for (const loser of losers) {
-        if (loser === forfeiter || loser.readyState !== loser.OPEN || !loser.room) continue;
-        const backfire = loser === duel.a;
-        const label = backfire ? `💥 Retour à l'envoyeur ! Duel perdu contre ${duel.b.name}` : `💥 Duel perdu contre ${duel.a.name}`;
-        const payload = mediaPayload({ ...duel.media, text: [label, duel.media.text].filter(Boolean).join(' · ') }, backfire ? duel.b.name : duel.a.name);
-        sentIndex.set(payload.id, { sender: duel.a, room: duel.a.room, at: Date.now() });
-        send(loser, payload);
-      }
-    }, DUEL_RESULT_MS);
   }
 
   wss.on('connection', (ws, req) => {

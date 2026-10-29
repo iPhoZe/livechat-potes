@@ -201,6 +201,23 @@
       setHitbox(null);
     },
 
+    // Explosion en fumée réutilisable (duel) : sons optionnels pour ne pas en jouer 20 d'un coup
+    explode(el, { sound = true, onDone } = {}) {
+      if (sound) playDeath();
+      smoke(el.getBoundingClientRect());
+      // "scale"/"rotate" (et pas "transform") : se combinent avec le positionnement existant de l'élément
+      el.animate(
+        [
+          { scale: '1', opacity: 1, filter: 'brightness(1)' },
+          { scale: '1.08', opacity: 1, filter: 'brightness(2.5) saturate(0)', offset: 0.25 },
+          { scale: '.2', rotate: '8deg', opacity: 0, filter: 'brightness(2.5) saturate(0)' },
+        ],
+        { duration: 380, easing: 'ease-in', fill: 'forwards' }
+      );
+      // minuterie plutôt que onfinish : Windows peut mettre en pause les animations d'une fenêtre masquée
+      if (onDone) setTimeout(onDone, 420);
+    },
+
     // Le duel prend la main sur la zone cliquable, puis la rend
     suspend() {
       suspended = true;
