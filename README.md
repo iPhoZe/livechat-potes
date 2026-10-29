@@ -46,9 +46,9 @@ Les applis installées vérifient au démarrage puis toutes les 4 h, télécharg
 
 ## Nouveautés v1.4 : duel de clics 🪢
 
-- Choisis un média, clique sur un pote, puis **⚔ Duel** : un panneau apparaît chez vous deux, compte à rebours 3, 2, 1, GO !
-- **Tir à la corde** : chaque clic tire la corde de ton côté. Premier à 30 clics d'avance, ou celui qui mène au bout de 20 s.
-- **Le perdant se mange le média** (si le lanceur perd : retour à l'envoyeur). Égalité : tout le monde le reçoit.
+- Choisis un média, clique sur un pote, puis **⚔ Duel** : le média s'affiche chez vous deux, compte à rebours 3, 2, 1, GO !
+- Clique **sur le média** : la barre en dessous avance vers ta couleur. Premier à 30 clics d'avance, ou celui qui mène au bout de 20 s.
+- **Gagnant** : le média explose. **Perdant** : il se duplique partout sur l'écran pendant 5 s, puis tout explose.
 - Les clics sont comptés par le serveur (anti-triche, 20 clics/s max). Déconnexion pendant le duel = forfait.
 
 ## Nouveautés v1.3 : mode combat ⚔️
