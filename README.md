@@ -44,6 +44,13 @@ Les applis installées vérifient au démarrage puis toutes les 4 h, télécharg
 - **Accusés de réception** : ⏳ en route → ✓ reçu → ✓✓ vu (affiché à l'écran), ✗ échec, 🔕 ne pas déranger.
 - **Installateur** (`LiveChat-Potes-Setup-x.y.z.exe`) avec raccourcis Bureau / menu Démarrer + option « Lancer au démarrage de Windows ».
 
+## Nouveautés v1.4 : duel de clics 🪢
+
+- Choisis un média, clique sur un pote, puis **⚔ Duel** : un panneau apparaît chez vous deux, compte à rebours 3, 2, 1, GO !
+- **Tir à la corde** : chaque clic tire la corde de ton côté. Premier à 30 clics d'avance, ou celui qui mène au bout de 20 s.
+- **Le perdant se mange le média** (si le lanceur perd : retour à l'envoyeur). Égalité : tout le monde le reçoit.
+- Les clics sont comptés par le serveur (anti-triche, 20 clics/s max). Déconnexion pendant le duel = forfait.
+
 ## Nouveautés v1.3 : mode combat ⚔️
 
 - Chaque média reçu a **10 cœurs** façon Minecraft. Clique dessus pour lui faire des dégâts (tremblement, flash rouge,

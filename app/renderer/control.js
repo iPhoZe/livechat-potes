@@ -294,7 +294,21 @@ function selectRecipient(name) {
   renderPeople();
 }
 
+// Duel : seulement contre un pote précis, connecté avec une version qui sait jouer
+function renderDuelButton() {
+  const btn = $('duelBtn');
+  const target = users.find((u) => u.name === selectedTo);
+  btn.disabled = !target || !target.duel || target.dnd;
+  btn.title =
+    selectedTo === '*' ? "Clique d'abord sur un pote pour le défier"
+    : !target ? 'Ce pote n’est plus connecté'
+    : target.dnd ? `${target.name} est en Ne pas déranger`
+    : !target.duel ? `${target.name} doit mettre à jour LiveChat pour jouer aux duels`
+    : `Défie ${target.name} : le perdant du duel de clics se mange ta vidéo !`;
+}
+
 function renderSendLabel() {
+  renderDuelButton();
   $('sendLabel').textContent = selectedTo === '*' ? 'Envoyer à tout le monde' : `Envoyer à ${selectedTo}`;
 }
 
@@ -564,6 +578,24 @@ $('send').addEventListener('click', async () => {
     clearSelection();
   } finally {
     setTimeout(() => ($('send').disabled = false), 1500);
+  }
+});
+
+$('duelBtn').addEventListener('click', async () => {
+  if (status !== 'connected') return toast('Pas connecté au serveur.', 'error');
+  const to = selectedTo;
+  const payload = await buildPayload();
+  if (!payload) return;
+  $('duelBtn').disabled = true;
+  try {
+    const res = await api.duelStart({ to, media: payload });
+    if (!res.ok) return toast(res.error, 'error');
+    $('text').value = '';
+    $('url').value = '';
+    setLinkState('');
+    clearSelection();
+  } finally {
+    setTimeout(renderDuelButton, 1500);
   }
 });
 

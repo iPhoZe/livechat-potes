@@ -139,6 +139,56 @@
       pointer-events: none;
     }
 
+    /* ---------- Duel de clics ---------- */
+    .duel {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      width: 640px;
+      padding: 18px 22px 16px;
+      border-radius: 20px;
+      background: linear-gradient(160deg, #1d1830, #120f1c);
+      border: 2px solid rgba(168, 85, 247, .6);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .6), 0 0 40px rgba(168, 85, 247, .25);
+      color: #fff;
+      cursor: pointer;
+      user-select: none;
+    }
+    .duel.fighting { border-color: #ec4899; box-shadow: 0 20px 60px rgba(0, 0, 0, .6), 0 0 50px rgba(236, 72, 153, .45); }
+    .duel-head { text-align: center; margin-bottom: 12px; }
+    .duel-title { font-size: 24px; font-weight: 900; letter-spacing: .08em; }
+    .duel-sub { font-size: 13px; color: #b9b0d6; margin-top: 2px; }
+    .duel-players { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .duel-player { display: flex; align-items: center; gap: 10px; width: 42%; }
+    .duel-player.them { flex-direction: row-reverse; text-align: right; }
+    .duel-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-weight: 800; font-size: 20px; border: 2px solid #fff; flex: none; }
+    .duel-name { font-weight: 800; font-size: 16px; }
+    .duel-count { font-size: 13px; color: #b9b0d6; }
+    .duel-vs { font-weight: 900; font-size: 22px; color: #ec4899; }
+    .duel-rope { position: relative; height: 38px; margin: 0 4px 12px; }
+    .duel-zone { position: absolute; top: 0; bottom: 0; width: 18%; border-radius: 10px; opacity: .25; transition: opacity .15s; }
+    .duel-zone.me { left: 0; background: #a855f7; }
+    .duel-zone.them { right: 0; background: #ec4899; }
+    .duel-line { position: absolute; left: 0; right: 0; top: 50%; height: 8px; transform: translateY(-50%); border-radius: 4px;
+      background: repeating-linear-gradient(115deg, #c9a46a 0 8px, #8a6a3a 8px 14px); box-shadow: 0 2px 0 #00000080; }
+    .duel-center { position: absolute; left: 50%; top: 2px; bottom: 2px; width: 3px; transform: translateX(-50%); background: #fff; opacity: .6; border-radius: 2px; }
+    .duel-knot { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; transform: translate(-50%, -50%); border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ff7a7a, #d4142c); border: 3px solid #fff; box-shadow: 0 0 16px #ff3b5c; transition: left .12s ease-out; }
+    .duel-big { text-align: center; font-size: 46px; font-weight: 900; line-height: 1.1; min-height: 52px; text-shadow: 0 4px 0 #000; }
+    .duel-big.count { color: #fbbf24; font-size: 58px; }
+    .duel-big.go { color: #34d399; }
+    .duel-big.pulse { animation: duel-pulse .35s ease-in-out infinite alternate; }
+    .duel-big.win { color: #fbbf24; }
+    .duel-big.lose { color: #f87171; }
+    .duel-big.tie { color: #93c5fd; }
+    .duel-timer { height: 6px; margin: 12px 0 8px; border-radius: 3px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+    .duel-timer > div { height: 100%; background: linear-gradient(90deg, #a855f7, #ec4899); transform-origin: left; }
+    .duel-hint { text-align: center; font-size: 14px; font-weight: 700; color: #d8b4fe; }
+    .duel-plus { position: absolute; z-index: 2; color: #34d399; font-weight: 900; font-size: 22px; text-shadow: 2px 2px 0 #000; pointer-events: none; }
+    @keyframes duel-pulse { to { transform: scale(1.12); } }
+
     @keyframes pop-in {
       from { opacity: 0; transform: scale(.6) rotate(-3deg); }
       to   { opacity: 1; transform: scale(1) rotate(0); }
@@ -153,6 +203,7 @@
 </head>
 <body>
   <script src="combat.js"></script>
+  <script src="duel.js"></script>
   <script src="overlay.js"></script>
 </body>
 </html>

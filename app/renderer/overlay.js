@@ -10,6 +10,7 @@ let current = null; // { msg, el, timers, objectUrl, media }
 api.onSettings((s) => {
   Object.assign(settings, s);
   window.Combat.setVolume(settings.volume);
+  window.Duel.setVolume(settings.volume);
   if (current?.media) current.media.volume = settings.volume;
 });
 

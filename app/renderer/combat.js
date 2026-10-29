@@ -180,7 +180,11 @@
 
   // ---------- Clics : l'overlay laisse passer la souris sauf au-dessus du média ----------
   // Le processus principal surveille le curseur et ne capte la souris que dans cette zone.
+  let activeCard = null;
+  let suspended = false;
   function setHitbox(card) {
+    activeCard = card;
+    if (suspended) return; // un duel occupe la souris ; on réappliquera la carte à la fin
     if (!card) return api.setHitbox(null);
     const r = card.getBoundingClientRect();
     api.setHitbox({ x: r.left, y: r.top, w: r.width, h: r.height });
@@ -195,6 +199,15 @@
     // Libère la souris (le média vient de disparaître sous le curseur)
     release() {
       setHitbox(null);
+    },
+
+    // Le duel prend la main sur la zone cliquable, puis la rend
+    suspend() {
+      suspended = true;
+    },
+    resume() {
+      suspended = false;
+      setHitbox(activeCard && activeCard.isConnected && activeCard.classList.contains('fightable') ? activeCard : null);
     },
 
     attach(card, onKill) {

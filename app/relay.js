@@ -25,7 +25,7 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
   function presenceOf(room) {
     const members = rooms.get(room);
     if (!members) return [];
-    return [...members.values()].map((c) => ({ name: c.name, dnd: c.dnd, since: c.joinedAt }));
+    return [...members.values()].map((c) => ({ name: c.name, dnd: c.dnd, since: c.joinedAt, duel: !!c.caps?.includes('duel') }));
   }
 
   function broadcastPresence(room) {
@@ -45,6 +45,135 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
     }
     log(`- ${ws.name} a quitté [${ws.room}]`);
     ws.room = null;
+  }
+
+  // Champs d'un média envoyé (commun aux envois classiques et aux duels)
+  function mediaPayload(msg, from, now = Date.now()) {
+    return {
+      type: 'media',
+      id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+      from,
+      kind: ['video', 'image', 'audio'].includes(msg.kind) ? msg.kind : 'image',
+      mime: msg.mime,
+      data: msg.data,
+      url: msg.url,
+      text: String(msg.text || '').slice(0, 200),
+      // Début de l'extrait vidéo (en secondes), la durée max est imposée côté receveur
+      start: Math.min(Math.max(Number(msg.start) || 0, 0), 36000),
+      source: msg.source === 'x' ? 'x' : undefined,
+    };
+  }
+
+  // ---------- Duel de clics (tir à la corde) ----------
+  // Le serveur compte les clics : c'est lui qui décide du gagnant, pas de triche possible côté client.
+  const DUEL_TARGET = 30; // écart de clics à atteindre pour tirer la corde jusqu'à son camp
+  const DUEL_MS = 20000; // sinon, celui qui mène au bout de 20 s gagne
+  const DUEL_INTRO_MS = 5000; // annonce + 3, 2, 1
+  const DUEL_MAX_CPS = 20; // au-delà, c'est un autoclicker : les clics en trop sont ignorés
+  const DUEL_RESULT_MS = 2800; // le temps d'afficher le résultat avant d'envoyer la vidéo au perdant
+  let duelSeq = 0;
+
+  function duelError(ws, message) {
+    send(ws, { type: 'error', message });
+  }
+
+  function startDuel(ws, msg) {
+    const members = rooms.get(ws.room) || new Map();
+    const opp = members.get(msg.to);
+    const media = msg.media || {};
+    if (!opp || opp === ws) return duelError(ws, "Ce pote n'est pas connecté.");
+    if (!opp.caps?.includes('duel')) return duelError(ws, `${opp.name} doit mettre à jour LiveChat pour jouer aux duels.`);
+    if (opp.dnd) return duelError(ws, `${opp.name} est en mode Ne pas déranger.`);
+    if (ws.duel || opp.duel) return duelError(ws, 'Un duel est déjà en cours.');
+    if (!media.data && !(media.url && /^https?:\/\//i.test(media.url))) return duelError(ws, 'Choisis une vidéo ou un GIF comme enjeu du duel.');
+    const now = Date.now();
+    if (now - ws.lastSend < cooldownMs) return duelError(ws, 'Doucement ! Attends un peu entre deux envois.');
+    ws.lastSend = now;
+
+    const duel = { id: `d${now}-${++duelSeq}`, a: ws, b: opp, pos: 0, ca: 0, cb: 0, state: 'intro', media, timers: [], bcTimer: null };
+    ws.duel = opp.duel = duel;
+    log(`⚔ duel ${ws.name} contre ${opp.name} [${ws.room}]`);
+    const intro = {
+      type: 'duel',
+      phase: 'intro',
+      id: duel.id,
+      a: ws.name,
+      b: opp.name,
+      target: DUEL_TARGET,
+      durationMs: DUEL_MS,
+      startsIn: DUEL_INTRO_MS,
+      mediaKind: media.kind,
+    };
+    send(ws, { ...intro, you: 'a' });
+    send(opp, { ...intro, you: 'b' });
+    duel.timers.push(
+      setTimeout(() => {
+        if (duel.state !== 'intro') return;
+        duel.state = 'fight';
+        duel.timers.push(setTimeout(() => endDuel(duel, 'time'), DUEL_MS));
+      }, DUEL_INTRO_MS)
+    );
+  }
+
+  function duelBroadcast(duel) {
+    if (duel.bcTimer) return;
+    // regroupe les clics : 20 mises à jour par seconde maximum
+    duel.bcTimer = setTimeout(() => {
+      duel.bcTimer = null;
+      const pos = { type: 'duel-pos', id: duel.id, pos: duel.pos, ca: duel.ca, cb: duel.cb };
+      send(duel.a, pos);
+      send(duel.b, pos);
+    }, 50);
+  }
+
+  function duelClick(ws, msg) {
+    const duel = ws.duel;
+    if (!duel || duel.id !== msg.id || duel.state !== 'fight') return;
+    const now = Date.now();
+    ws.clicks = (ws.clicks || []).filter((t) => now - t < 1000);
+    if (ws.clicks.length >= DUEL_MAX_CPS) return;
+    ws.clicks.push(now);
+    if (ws === duel.a) {
+      duel.ca++;
+      duel.pos++;
+    } else {
+      duel.cb++;
+      duel.pos--;
+    }
+    if (Math.abs(duel.pos) >= DUEL_TARGET) return endDuel(duel, 'rope');
+    duelBroadcast(duel);
+  }
+
+  // forfeiter : joueur parti en plein duel (déconnexion) → l'autre gagne
+  function endDuel(duel, reason, forfeiter = null) {
+    if (duel.state === 'over') return;
+    duel.state = 'over';
+    duel.timers.forEach(clearTimeout);
+    clearTimeout(duel.bcTimer);
+    duel.a.duel = duel.b.duel = null;
+
+    let winner = null;
+    if (forfeiter) winner = forfeiter === duel.a ? duel.b : duel.a;
+    else if (duel.pos > 0) winner = duel.a;
+    else if (duel.pos < 0) winner = duel.b;
+    const losers = winner ? [winner === duel.a ? duel.b : duel.a] : [duel.a, duel.b]; // égalité : tout le monde la mange
+    log(`⚔ fin du duel ${duel.a.name}/${duel.b.name} : ${winner ? `${winner.name} gagne` : 'égalité'} (${duel.ca}-${duel.cb}, ${reason})`);
+
+    const end = { type: 'duel-end', id: duel.id, winner: winner?.name || null, pos: duel.pos, ca: duel.ca, cb: duel.cb, reason: forfeiter ? 'forfeit' : reason };
+    send(duel.a, end);
+    send(duel.b, end);
+
+    // La vidéo en jeu arrive chez le(s) perdant(s) une fois le résultat affiché
+    setTimeout(() => {
+      for (const loser of losers) {
+        if (loser === forfeiter || loser.readyState !== loser.OPEN || !loser.room) continue;
+        const backfire = loser === duel.a;
+        const label = backfire ? `💥 Retour à l'envoyeur ! Duel perdu contre ${duel.b.name}` : `💥 Duel perdu contre ${duel.a.name}`;
+        const payload = mediaPayload({ ...duel.media, text: [label, duel.media.text].filter(Boolean).join(' · ') }, backfire ? duel.b.name : duel.a.name);
+        sentIndex.set(payload.id, { sender: duel.a, room: duel.a.room, at: Date.now() });
+        send(loser, payload);
+      }
+    }, DUEL_RESULT_MS);
   }
 
   wss.on('connection', (ws, req) => {
@@ -75,12 +204,14 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
           log(`~ ${name} remplace son ancienne connexion [${room}]`);
           send(existing, { type: 'replaced', message: `Ton pseudo "${name}" vient de se connecter depuis un autre endroit.` });
           members.delete(name);
+          if (existing.duel) endDuel(existing.duel, 'forfeit', existing);
           existing.room = null;
           existing.terminate();
         }
         ws.name = name;
         ws.room = room;
         ws.dnd = !!msg.dnd;
+        ws.caps = Array.isArray(msg.caps) ? msg.caps.slice(0, 10).map(String) : [];
         ws.joinedAt = Date.now();
         members.set(name, ws);
         log(`+ ${name} a rejoint [${room}] (${req.socket.remoteAddress})`);
@@ -94,6 +225,9 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
         ws.dnd = !!msg.dnd;
         return broadcastPresence(ws.room);
       }
+
+      if (msg.type === 'duel-start') return startDuel(ws, msg);
+      if (msg.type === 'duel-click') return duelClick(ws, msg);
 
       // Bouton "Actualiser" : on vérifie qui répond encore, puis on renvoie la liste
       if (msg.type === 'who') {
@@ -172,7 +306,10 @@ function startRelay({ port = 8080, maxMb = 25, cooldownMs = 2000, log = console.
       }
     });
 
-    ws.on('close', () => leave(ws));
+    ws.on('close', () => {
+      if (ws.duel) endDuel(ws.duel, 'forfeit', ws);
+      leave(ws);
+    });
     ws.on('error', () => leave(ws));
   });
 

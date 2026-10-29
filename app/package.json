@@ -1,7 +1,7 @@
 {
   "name": "livechat-potes",
   "productName": "LiveChat Potes",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "Envoie des GIFs, vidéos et sons sur l'écran de tes potes",
   "author": "iPhoZe",

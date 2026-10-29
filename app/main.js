@@ -535,7 +535,7 @@ function connect() {
   let lastError = null;
 
   sock.on('open', () => {
-    sock.send(JSON.stringify({ type: 'hello', name: config.name, room: config.room, dnd: config.dnd }));
+    sock.send(JSON.stringify({ type: 'hello', name: config.name, room: config.room, dnd: config.dnd, caps: ['duel'] }));
     helloTimer = setTimeout(() => {
       lastError = "Le serveur n'a pas répondu à la demande d'entrée dans le salon.";
       log.warn('Pas de réponse au hello, on coupe');
@@ -595,6 +595,23 @@ function connect() {
       case 'ack':
         toControl('ack', { id: msg.id, by: msg.by, status: msg.status });
         break;
+      // Duel de clics : l'overlay affiche le jeu, la fenêtre affiche le résultat
+      case 'duel':
+        keepOverlayInFront(30000);
+        toOverlay('duel', msg);
+        toControl('toast', { kind: 'ok', text: msg.you === 'a' ? `⚔ Duel lancé contre ${msg.b} !` : `⚔ ${msg.a} te défie en duel !` });
+        break;
+      case 'duel-pos':
+        toOverlay('duel-pos', msg);
+        break;
+      case 'duel-end': {
+        toOverlay('duel-end', msg);
+        const me = config.name;
+        const text = msg.winner === me ? '🏆 Duel gagné !' : msg.winner ? `💀 Duel perdu contre ${msg.winner}…` : '🤝 Égalité : tout le monde se mange le média !';
+        toControl('toast', { kind: msg.winner === me ? 'ok' : 'error', text });
+        log.info(`Duel terminé : ${msg.winner || 'égalité'} (${msg.ca}-${msg.cb}, ${msg.reason})`);
+        break;
+      }
       case 'media':
         if (config.dnd) {
           wsSend({ type: 'ack', id: msg.id, status: 'skipped' });
@@ -806,6 +823,12 @@ ipcMain.handle('send-media', (_e, payload) => {
   const ok = wsSend({ type: 'media', ...payload });
   return ok ? { ok: true } : { ok: false, error: 'Pas connecté au serveur.' };
 });
+
+ipcMain.handle('duel-start', (_e, { to, media }) => {
+  const ok = wsSend({ type: 'duel-start', to, media });
+  return ok ? { ok: true } : { ok: false, error: 'Pas connecté au serveur.' };
+});
+ipcMain.on('duel-click', (_e, id) => wsSend({ type: 'duel-click', id }));
 
 ipcMain.handle('preview-self', (_e, payload) => {
   // Test local : affiche le média sur ton propre écran

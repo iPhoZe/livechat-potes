@@ -189,7 +189,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .clip { padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
 .clip-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
 
-.send-row { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+.send-row { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; }
+.duel-btn { background: rgba(236, 72, 153, .12); border-color: rgba(236, 72, 153, .45); color: #f9a8d4; }
+.duel-btn:not(:disabled):hover { background: rgba(236, 72, 153, .22); }
 .send-row .btn.primary { min-width: 0; }
 #sendLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

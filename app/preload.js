@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('livechat', {
   refreshPresence: () => ipcRenderer.invoke('refresh-presence'),
   resolveLink: (url) => ipcRenderer.invoke('resolve-link', url),
   sendMedia: (p) => ipcRenderer.invoke('send-media', p),
+  duelStart: (p) => ipcRenderer.invoke('duel-start', p),
   previewSelf: (p) => ipcRenderer.invoke('preview-self', p),
   clearOverlay: () => ipcRenderer.send('clear-overlay'),
   quit: () => ipcRenderer.send('quit-app'),
@@ -38,6 +39,10 @@ contextBridge.exposeInMainWorld('livechat', {
   // Overlay
   ack: (id, status) => ipcRenderer.send('overlay-ack', { id, status }),
   setHitbox: (box) => ipcRenderer.send('overlay-hitbox', box),
+  duelClick: (id) => ipcRenderer.send('duel-click', id),
+  onDuel: on('duel'),
+  onDuelPos: on('duel-pos'),
+  onDuelEnd: on('duel-end'),
   onMedia: on('media'),
   onClear: on('clear'),
   onSettings: on('settings'),
